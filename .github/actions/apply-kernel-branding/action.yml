@@ -38,6 +38,22 @@ runs:
         BRAND="${{ inputs.brand_name }}"
         KEEP_KMI="${{ inputs.keep_kmi }}"
 
+        # Exact stock release/timestamp (config/kernel_release, config/kernel_build_timestamp)
+        # so uname and /proc/version match the device's stock kernel byte-for-byte.
+        REL_FILE="$GITHUB_WORKSPACE/config/kernel_release"
+        if [ -f "$REL_FILE" ]; then
+          REL=$(tr -d '\n' < "$REL_FILE")
+          sed -i '$d' scripts/setlocalversion && echo "echo \"$REL\"" >> scripts/setlocalversion
+          TS_FILE="$GITHUB_WORKSPACE/config/kernel_build_timestamp"
+          if [ -f "$TS_FILE" ]; then
+            TS=$(tr -d '\n' < "$TS_FILE")
+            sed -i "s|^build-timestamp = .*|build-timestamp = $TS|" init/Makefile
+            grep -qxF "build-timestamp = $TS" init/Makefile || { echo "ERROR: timestamp override failed" >&2; exit 1; }
+          fi
+          tail -n 1 scripts/setlocalversion
+          exit 0
+        fi
+
         if [ -z "$BRAND" ]; then
           echo "brand_name is empty, keeping stock kernel version string"
           exit 0
