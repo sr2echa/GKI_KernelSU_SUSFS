@@ -73,6 +73,15 @@ runs:
             fi
           fi
           echo "tag_fallback=$TAG_FALLBACK" >> $GITHUB_OUTPUT
+          # Pin kernel/common to an exact commit (e.g. a device's stock GKI source) so
+          # system_dlkm GKI modules' symbol CRCs match the rebuilt kernel.
+          PIN_FILE="${GITHUB_WORKSPACE}/config/common_commit_${FORMATTED_BRANCH}"
+          if [ -f "$PIN_FILE" ]; then
+            PIN=$(tr -d '[:space:]' < "$PIN_FILE")
+            sed -i "/path=\"common\"/ s|revision=\"[^\"]*\"|revision=\"${PIN}\"|" "$DEFAULT_MANIFEST_PATH"
+            grep -q "revision=\"${PIN}\"" "$DEFAULT_MANIFEST_PATH" || { echo "ERROR: failed to pin common to ${PIN}" >&2; return 1; }
+            echo "[!] Pinned kernel/common to ${PIN}"
+          fi
         }
 
         # Retry policy: googlesource periodically serves deprecated branches
